@@ -1,0 +1,7 @@
+[gd_scene format=2]
+
+[node name="CamMv" type="Node2D"]
+
+[node name="Camera2D" type="Camera2D" parent="."]
+current = true
+
