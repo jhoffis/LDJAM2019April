@@ -1,0 +1,13 @@
+[gd_scene load_steps=2 format=2]
+
+[ext_resource path="res://Scripts/Land.cs" type="Script" id=1]
+
+[node name="Land" type="Node2D"]
+script = ExtResource( 1 )
+
+[node name="Area" type="Area2D" parent="."]
+
+[node name="Collision" type="CollisionPolygon2D" parent="Area"]
+polygon = PoolVector2Array( -149.525, -56.465, -239.775, 207.065, 206.06, 282.875, 178.083, -88.955 )
+
+[connection signal="input_event" from="Area" to="." method="_on_Area_input_event"]

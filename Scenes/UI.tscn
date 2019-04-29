@@ -1,6 +1,39 @@
-[gd_scene format=2]
+[gd_scene load_steps=3 format=2]
+
+[sub_resource type="InputEventKey" id=3]
+scancode = 16777221
+
+[sub_resource type="ShortCut" id=2]
+shortcut = SubResource( 3 )
 
 [node name="UI" type="Control"]
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+
+[node name="NextTurn" type="Button" parent="."]
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+margin_left = -130.0
+margin_top = -52.0
+hint_tooltip = "Press Enter"
+focus_mode = 0
+enabled_focus_mode = 0
+shortcut = SubResource( 2 )
+text = "Next Turn"
+
+[node name="Player" type="Label" parent="."]
+margin_left = 10.0
+margin_top = 10.0
+margin_right = 81.0
+margin_bottom = 23.0
+text = "awds"
+
+[node name="CurrentPlayer" type="Label" parent="."]
+margin_left = 10.0
+margin_top = 30.0
 margin_right = 40.0
-margin_bottom = 40.0
+margin_bottom = 14.0
 
