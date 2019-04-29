@@ -19,7 +19,7 @@ public class Map : Node2D
 		SetProcessInput(true);
 
 		player = new Player(0, (Label)root.FindNode("UI").FindNode("Player"));
-		turnInfo = new TurnInfo(2, (Label)root.FindNode("UI").FindNode("CurrentPlayer"));
+		turnInfo = new TurnInfo(3, (Label)root.FindNode("UI").FindNode("CurrentPlayer"));
 
 		Color[] teamColors = new Color[8];
 		teamColors[0] = new Color(51 / 255f, 102 / 255f, 204 / 255f, 1);
@@ -121,7 +121,6 @@ public class Map : Node2D
 		}
 		if (conquest && mousePointingNation >= 0)
 		{
-			GD.Print("Checking");
 			borderHandler.SuggestConquest(key);
 		}
 	}

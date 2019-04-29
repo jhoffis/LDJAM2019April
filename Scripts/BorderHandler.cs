@@ -128,7 +128,24 @@ public class BorderHandler : Node2D
 		return res;
 	}
 
-	private void TryCut(int prev1, int next1, Nation targetNation, bool away)
+
+	//Det er en bug som gjelder øyer.
+	//Hvis target har ingen punkt som er på kanten og ikke flere naboer enn 1, init (om ikke finnes) en ny mengde med punkt som er designert til targets playernr. 
+	/* 
+		Basically ha en referanse til rød sine punkter som blir en nogozone og så fjern her alle punkt som er lik noen av disse.
+	 */
+	//Sjekk dette hver gang og om dette er usant så sjekk om man har en øy for denne nasjonen. Slett så om sant. 
+
+	//Også: Sett nasjonen som øy eller ei lokalt i nasjonen; om nasjonen er en øy så øk z verdien - ellers mink z verdien.
+
+	/*
+		Grunnen til at noen ganger så kommer verdensrommet inn i landet med vanlig kutt (ingen øy) er fordi jeg ikke sjekker Contains() i innlegging av originale punkter i InsertPointsIntoFriendlyBorder. 
+		Da kommer det vektorer som dette etterhverandre: (x1, y1) -> (x2, y2) -> (x2, y2) -> (x1, y1)
+		Dette er relativt OK OM du ikke kutter noe mer... Men man må jo kutte >:)
+	 */
+
+
+	private void TryConquest(int prev, int next, Nation targetNation, bool away)
 	{
 		Nation myNation = (Nation)nations[Map.player.playernr];
 		//Sjekk om det er samme nasjon
@@ -143,67 +160,56 @@ public class BorderHandler : Node2D
 
 
 		//First change enemyborder
-		targetNation.ClearBorderPoints();
-		myNation.ClearBorderPoints();
+
 		Queue<Vector2> newTargetBorder = new Queue<Vector2>();
 		Stack<Vector2> newFriendlyBorder = new Stack<Vector2>();
+		Vector2[] newBorderPoints;
 
 
-		int nextAct;
-		if (next1 <= prev1)
-		{
-			nextAct = targetPoints.Length - 1;
-		}
-		else
-		{
-			nextAct = next1;
-		}
 
-
+		//Basically sjekk om LShift er nede
 		if (away)
 		{
-			DrawNewTargetBorderAwayFromCenter(prev1, targetPoints, newTargetBorder, nextAct);
-
+			//Først kutt target
+			DrawNewTargetBorderAwayFromCenter(prev, targetPoints, newTargetBorder, next);
+			newBorderPoints = GatherTargetBorderTowardsCenter(prev, targetPoints, next);
 		}
 		else
 		{
-			DrawNewTargetBorderTowardsCenter(prev1, targetPoints, newTargetBorder, nextAct);
-			Vector2[] newBorderPoints = GatherTargetBorderAwayFromCenter(prev1, targetPoints, nextAct);
-			bool found = false;
-			int lastIndex = myPoints.Length - 2;
-			int betweenIndex = myPoints.Length - 1;
-
-			int i = 0;
-			while (!found)
-			{
-				Vector2 lastPoint = myPoints[lastIndex];
-				Vector2 betweenPoint = myPoints[betweenIndex];
-				Vector2 thisPoint = myPoints[i];
-
-				//Sjekk om forrige point peker samme vei som i point. Hvis sant ikke enqueue.
-				// Se etter om punktet er rett.
-				for (int n = 0; n < newBorderPoints.Length; n++)
-				{
-					if (myPoints[i].x == newBorderPoints[n].x && myPoints[i].y == newBorderPoints[n].y)
-					{
-						found = InsertPointsIntoFriendlyBorder(newFriendlyBorder, newBorderPoints, n, betweenPoint, thisPoint, myPoints, i + 1);
-						break;
-					}
-				}
-				if (found)
-					break;
-
-				SameDirectionCorrection(lastPoint, betweenPoint, thisPoint, newFriendlyBorder);
-
-				lastIndex = (lastIndex + 1) % myPoints.Length;
-				betweenIndex = (betweenIndex + 1) % myPoints.Length;
-
-
-				i++;
-			}
-
+			//Først kutt target
+			DrawNewTargetBorderTowardsCenter(prev, targetPoints, newTargetBorder, next);
+			newBorderPoints = GatherTargetBorderAwayFromCenter(prev, targetPoints, next);
 		}
 
+
+
+		Vector2 found = IsBorderTouching(myPoints, newBorderPoints);
+		if (found.x == -1)
+			return;
+
+		Vector2 targetIsIsland = IsIsland(newTargetBorder.ToArray() as Vector2[], targetNation.playernr);
+		if (targetIsIsland.x == -1)
+		{
+			DrawNewFriendlyBorder(myPoints, newFriendlyBorder, newBorderPoints, (int)found.x, (int)found.y, false, null);
+			RemoveOwnerOfIsland(targetNation);
+		}
+		else
+		{
+			//FIXME
+			GD.Print("ISLAND!!!");
+			DrawNewFriendlyBorder(myPoints, newFriendlyBorder, newBorderPoints, (int)found.x, (int)found.y, true, newTargetBorder.ToArray() as Vector2[]);
+			SetOwnerOfIsland(targetNation, (int) targetIsIsland.y);
+		}
+
+		//Sjekk også om at NOEN har blitt island... under myNation faktisk.
+
+		// Sjekk om myNation også er island. Hvis så: Sjekk om den vil være island etter kutt. Hvis ikke flytt z verdi til vanlig posisjon, sett island (elns) til false og fjern alle island referanser til myNation.
+		DecipherWhichNationsAreIslands(targetNation);
+
+
+		//Clean up before adding new points
+		targetNation.ClearBorderPoints();
+		myNation.ClearBorderPoints();
 
 		//Change target borders
 		Vector2 firstPoint = newTargetBorder.Peek();
@@ -223,20 +229,174 @@ public class BorderHandler : Node2D
 		{
 			myNation.NewBorder(nfb[b], nfb[b - 1]);
 		}
-		myNation.NewBorder(nfb[0], nfb[nfb.Length - 1]);
+		myNation.NewBorder((Vector2)nfb[0], (Vector2)nfb[nfb.Length - 1]);
 		myNation.CleanNewBorders();
 		UpdateGenericPointer(myNation);
 	}
 
-	private void SameDirectionCorrection(Vector2 lastPoint, Vector2 betweenPoint, Vector2 thisPoint, Stack<Vector2> newFriendlyBorder)
+	private void DecipherWhichNationsAreIslands(Nation targetNation)
+	{
+		foreach (Nation nation in nations)
+		{
+			if (nation.playernr != targetNation.playernr)
+			{
+				Vector2 isAnIsland = IsIsland(nation.GetPoints().ToArray(typeof(Vector2)) as Vector2[], nation.playernr);
+				if (isAnIsland.x == -1)
+				{
+					RemoveOwnerOfIsland(nation);
+				}
+				else
+				{
+					SetOwnerOfIsland(nation, (int)isAnIsland.y);
+				}
+			}
+		}
+	}
+
+	private void RemoveOwnerOfIsland(Nation nation)
+	{
+		if (nation.islandWithin != -1)
+		{
+			Nation owner = (Nation)nations[nation.islandWithin];
+			owner.ReleaseIsland(nation.playernr);
+		}
+
+		nation.island = false;
+		nation.islandWithin = -1;
+	}
+
+	private void SetOwnerOfIsland(Nation nation, int newOwnerIndex)
+	{
+		Nation newOwner = (Nation)nations[newOwnerIndex];
+		if (nation.islandWithin != -1 && nation.islandWithin != newOwnerIndex)
+		{
+			Nation owner = (Nation)nations[nation.islandWithin];
+			owner.ReleaseIsland(nation.playernr);
+			newOwner.AddIsland(nation.playernr);
+		}
+
+		newOwner.UpdateIsland(nation.playernr, nation.GetPoints().ToArray(typeof(Vector2)) as Vector2[]);
+
+		nation.island = true;
+		nation.islandWithin = newOwnerIndex;
+	}
+
+	private Vector2 IsIsland(Vector2[] targetPoints, int target)
+	{
+		int res = 1;
+		int owner = -1;
+		int amount = 0;
+		//Hvis playercount er lavere enn 2 så ser man bare på kantenoder
+		if (amount > 2)
+		{
+			//se på kantenoder OG om man er borti en annen nasjon.
+			foreach (Vector2 v in targetPoints)
+			{
+				if (Math.Abs(v.x) == size || Math.Abs(v.y) == size)
+				{
+					res = -1;
+					break;
+				}
+				for (int i = 0; i < nations.Count; i++)
+				{
+					if (i != target)
+					{
+						Nation otherNation = (Nation)nations[i];
+						ArrayList otherPoints = otherNation.GetPoints();
+
+						for (int n = 0; n < otherPoints.Count; n++)
+						{
+							if (IsSamePoint(v, (Vector2)otherPoints[n]))
+							{
+								owner = i;
+								amount++;
+
+								if (amount > 1)
+								{
+									res = -1;
+									break;
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+		else
+		{
+			foreach (Vector2 v in targetPoints)
+			{
+				if (Math.Abs(v.x) == size || Math.Abs(v.y) == size)
+				{
+					res = -1;
+					break;
+				}
+			}
+		}
+		return new Vector2(res, owner);
+	}
+
+	private void DrawNewFriendlyBorder(Vector2[] myPoints, Stack<Vector2> newFriendlyBorder, Vector2[] newBorderPoints, int myPointsTill, int targetPointsFrom, bool islandmode, Vector2[] newTargetBorder)
+	{
+		int lastIndex = myPoints.Length - 2;
+		int betweenIndex = myPoints.Length - 1;
+		int offIndex = myPointsTill + 1;
+		if (myPointsTill == 0)
+			offIndex = 0;
+
+		Vector2 lastPoint = myPoints[lastIndex];
+		Vector2 betweenPoint = myPoints[betweenIndex];
+		Vector2 thisPoint = myPoints[0];
+
+		for (int i = 0; i < myPointsTill; i++)
+		{
+			lastPoint = myPoints[lastIndex];
+			betweenPoint = myPoints[betweenIndex];
+			thisPoint = myPoints[i];
+
+			IsSameDirectionCorrection(lastPoint, betweenPoint, thisPoint, newFriendlyBorder);
+
+			lastIndex = (lastIndex + 1) % myPoints.Length;
+			betweenIndex = (betweenIndex + 1) % myPoints.Length;
+		}
+
+		InsertPointsIntoFriendlyBorder(newFriendlyBorder, newBorderPoints, targetPointsFrom, betweenPoint, thisPoint, myPoints, offIndex, islandmode, newTargetBorder);
+	}
+
+	private Vector2 IsBorderTouching(Vector2[] myPoints, Vector2[] newBorderPoints)
+	{
+		for (int i = 0; i < myPoints.Length; i++)
+		{
+			for (int n = 0; n < newBorderPoints.Length; n++)
+			{
+				if (IsSamePoint(myPoints[i], newBorderPoints[n]))
+				{
+					return new Vector2(i, n);
+				}
+			}
+		}
+		return new Vector2(-1, -1);
+	}
+
+	private bool IsSamePoint(Vector2 v1, Vector2 v2)
+	{
+		return v1.x == v2.x && v1.y == v2.y;
+
+	}
+
+	private bool IsSameDirection(Vector2 lastPoint, Vector2 betweenPoint, Vector2 thisPoint)
 	{
 		double d1 = (betweenPoint.y - lastPoint.y) / (betweenPoint.x - lastPoint.x);
 		double d2 = (thisPoint.y - betweenPoint.y) / (thisPoint.x - betweenPoint.x);
-		if (d1 >= d2 - differ
-						&&
-						d1 <= d2 + differ)
+
+		//Samme retning som forrige
+		return (d1 >= d2 - differ && d1 <= d2 + differ);
+	}
+
+	private void IsSameDirectionCorrection(Vector2 lastPoint, Vector2 betweenPoint, Vector2 thisPoint, Stack<Vector2> newFriendlyBorder)
+	{
+		if (IsSameDirection(lastPoint, betweenPoint, thisPoint))
 		{
-			//Samme retning som forrige
 			newFriendlyBorder.Pop();
 			newFriendlyBorder.Push(thisPoint);
 		}
@@ -246,11 +406,9 @@ public class BorderHandler : Node2D
 		}
 	}
 
-	private bool InsertPointsIntoFriendlyBorder(Stack<Vector2> newFriendlyBorder, Vector2[] newBorderPoints, int n, Vector2 lastPoint, Vector2 betweenPoint, Vector2[] myPoints, int leftOffIndex)
+	private void InsertPointsIntoFriendlyBorder(Stack<Vector2> newFriendlyBorder, Vector2[] newBorderPoints, int n, Vector2 lastPoint, Vector2 betweenPoint, Vector2[] myPoints, int leftOffIndex, bool islandmode, Vector2[] newTargetBorder)
 	{
-		bool found;
 		int nbp;
-		found = true;
 
 		newFriendlyBorder.Push(newBorderPoints[(n + 1) % newBorderPoints.Length]);
 		betweenPoint = newBorderPoints[(n + 1) % newBorderPoints.Length];
@@ -258,40 +416,79 @@ public class BorderHandler : Node2D
 		for (int a = 0; a < newBorderPoints.Length - 2; a++)
 		{
 			nbp = (a + n + 2) % newBorderPoints.Length;
-			if (!Contains(newFriendlyBorder, newBorderPoints[nbp]))
+			if (!ContainsInStack(newFriendlyBorder, newBorderPoints[nbp]))
 			{
-				SameDirectionCorrection(lastPoint, betweenPoint, newBorderPoints[nbp], newFriendlyBorder);
-				lastPoint = betweenPoint;
-				betweenPoint = newBorderPoints[nbp];
+				if (!(islandmode && ContainsInArray(newTargetBorder, newBorderPoints[nbp])))
+				{
+					IsSameDirectionCorrection(lastPoint, betweenPoint, newBorderPoints[nbp], newFriendlyBorder);
+					lastPoint = betweenPoint;
+					betweenPoint = newBorderPoints[nbp];
+				}
 			}
 		}
-
 		for (int r = leftOffIndex; r < myPoints.Length; r++)
 		{
-			if (!Contains(newFriendlyBorder, myPoints[r]))
+			if (!(islandmode && ContainsInArray(newTargetBorder, myPoints[r])))
 			{
-				SameDirectionCorrection(lastPoint, betweenPoint, myPoints[r], newFriendlyBorder);
+				IsSameDirectionCorrection(lastPoint, betweenPoint, myPoints[r], newFriendlyBorder);
 				lastPoint = betweenPoint;
 				betweenPoint = myPoints[r];
 			}
+			//Legg til søk av seg selv nedover i listen. Om den finner seg selv fjern alle i mellom og sin kopi.
+
+			// newFriendlyBorder = PopTillCopyFound(newFriendlyBorder, myPoints[r]);
+
 		}
 
 		//Control last point but don't actually add it!
-		SameDirectionCorrection(lastPoint, betweenPoint, myPoints[0], newFriendlyBorder);
+		IsSameDirectionCorrection(lastPoint, betweenPoint, myPoints[0], newFriendlyBorder);
 		newFriendlyBorder.Pop();
 
-		return found;
+
 	}
 
-	private bool Contains(Stack<Vector2> border, Vector2 point)
+	private Stack<Vector2> PopTillCopyFound(Stack<Vector2> path, Vector2 point)
 	{
-		Vector2[] arr = border.ToArray() as Vector2[];
+		Stack<Vector2> cleansedPath = new Stack<Vector2>(new Stack<Vector2>(path));
+		bool found = false;
+
+		cleansedPath.Pop();
+		int i = 0;
+		while (cleansedPath.Count != 0 && i < 5)
+		{
+			Vector2 popped = cleansedPath.Pop();
+			if (popped.x == point.x && popped.y == point.y)
+			{
+				cleansedPath.Push(point);
+				found = true;
+				break;
+			}
+			i++;
+		}
+
+		if (found)
+		{
+			return cleansedPath;
+		}
+		else
+		{
+			return path;
+		}
+	}
+
+	private bool ContainsInArray(Vector2[] arr, Vector2 point)
+	{
 		foreach (Vector2 v in arr)
 		{
 			if (v.x == point.x && v.y == point.y)
 				return true;
 		}
 		return false;
+	}
+
+	private bool ContainsInStack(Stack<Vector2> border, Vector2 point)
+	{
+		return ContainsInArray(border.ToArray() as Vector2[], point);
 	}
 
 	private void DrawNewTargetBorderTowardsCenter(int previous, Vector2[] targetPoints, Queue<Vector2> newTargetBorder, int nextAct)
@@ -312,6 +509,27 @@ public class BorderHandler : Node2D
 			}
 		}
 	}
+
+	private Vector2[] GatherTargetBorderTowardsCenter(int previous, Vector2[] targetPoints, int nextAct)
+	{
+		ArrayList list = new ArrayList();
+		bool suggested = false;
+		for (int i = 0; i < targetPoints.Length; i++)
+		{
+			if (i <= previous || i >= nextAct)
+			{
+				list.Add(targetPoints[i]);
+			}
+			else if (!suggested)
+			{
+				list.Add((Vector2)suggestedPoints[0]);
+				list.Add((Vector2)suggestedPoints[1]);
+				suggested = true;
+			}
+		}
+		return list.ToArray(typeof(Vector2)) as Vector2[];
+	}
+
 	private Vector2[] GatherTargetBorderAwayFromCenter(int previous, Vector2[] targetPoints, int nextAct)
 	{
 		ArrayList list = new ArrayList();
@@ -360,6 +578,7 @@ public class BorderHandler : Node2D
 		}
 	}
 
+	// Bug: Den tegner strek UANSETT om den treffer en av sine egne linjer. Tenker ikke noe på om det finnes en strek som er nærmere eller om den går igjennom en annen sitt land.
 	internal void SuggestConquest(InputEventMouseButton key)
 	{
 		double d1;
@@ -372,12 +591,15 @@ public class BorderHandler : Node2D
 		Vector2 mp = GetGlobalMousePosition();
 
 		suggestedPoints = new ArrayList();
+		ArrayList tempLineSuggestions = new ArrayList();
 		int previous = -1;
 		int next = -1;
 
+
+
 		for (int i = 0; i < points.Count; i++)
 		{
-			GD.Print("------------" + points.Count);
+			// GD.Print("------------" + points.Count);
 			Vector2 p1 = (Vector2)points[i];
 			Vector2 p2 = (Vector2)points[(i + 1) % points.Count];
 			double a = (p2.y + size) - (p1.y + size);
@@ -389,6 +611,8 @@ public class BorderHandler : Node2D
 
 			if (!(d1 > d2 - differ && d1 < d2 + differ))
 			{
+				//TODO flytt dette til en generell sjekk hvor kuttes metode - Da kan jeg lett(ere) få til NATIONTEXT yalll!
+
 				if (p1.x == p2.x)
 				{
 					// Få til spesial tilfelle der x = 0 eller y = inf
@@ -408,19 +632,34 @@ public class BorderHandler : Node2D
 				{
 					if (CheckY(p1, p2, y))
 					{
-						if (suggestedPoints.Count == 0)
-						{
-							suggestedPoints.Add(new Vector2((float)(x), (float)(y)));
-							previous = i;
-						}
-						else if (suggestedPoints.Count == 1)
-						{
-							suggestedPoints.Add(new Vector2((float)(x), (float)(y)));
-							next = i + 1;
-						}
+						tempLineSuggestions.Add(new LineSuggestion(new Vector2((float)(x), (float)(y)), i, tempLineSuggestions.Count));
 					}
 				}
 			}
+		}
+
+		if (tempLineSuggestions.Count < 2)
+			return;
+
+		LineSuggestion suggestionPoint1 = FindSmallestDistance(tempLineSuggestions.ToArray(typeof(LineSuggestion)) as LineSuggestion[], mp, null);
+		tempLineSuggestions.RemoveAt(suggestionPoint1.tempindex);
+		LineSuggestion suggestionPoint2 = FindSmallestDistance(tempLineSuggestions.ToArray(typeof(LineSuggestion)) as LineSuggestion[], mp, suggestionPoint1);
+
+		if (suggestionPoint1.index < suggestionPoint2.index)
+		{
+			previous = suggestionPoint1.index;
+			suggestedPoints.Add(suggestionPoint1.line);
+
+			next = suggestionPoint2.index + 1;
+			suggestedPoints.Add(suggestionPoint2.line);
+		}
+		else
+		{
+			previous = suggestionPoint2.index;
+			suggestedPoints.Add(suggestionPoint2.line);
+
+			next = suggestionPoint1.index + 1;
+			suggestedPoints.Add(suggestionPoint1.line);
 		}
 
 		while (line.GetPointCount() != 0)
@@ -435,10 +674,52 @@ public class BorderHandler : Node2D
 
 		if (key != null && key.IsPressed() && key.ButtonIndex == 2)
 		{
-			TryCut(previous, next, targetNation, key.Shift);
+			TryConquest(previous, next, targetNation, key.Shift);
 		}
 
 	}
+
+	private LineSuggestion FindSmallestDistance(LineSuggestion[] suggestions, Vector2 origin, LineSuggestion other)
+	{
+		LineSuggestion smallest = suggestions[0];
+
+		for (int i = 1; i < suggestions.Length; i++)
+		{
+			if (suggestions[i].CompareLine(smallest.line, origin) > 0)
+			{
+				if (other == null)
+					smallest = suggestions[i];
+				else
+				{
+					if (suggestions[i].line.x == origin.x)
+					{
+						int sug1 = Math.Sign(suggestions[i].line.y - origin.y);
+						int sug2 = Math.Sign(other.line.y - origin.y);
+						// GD.Print("i: " + sug1 + ", other: " + sug2);
+						//sjekk y
+						if (sug1 != sug2)
+						{
+							smallest = suggestions[i];
+						}
+					}
+					else
+					{
+						int sug1 = Math.Sign(suggestions[i].line.x - origin.x);
+						int sug2 = Math.Sign(other.line.x - origin.x);
+						// GD.Print("i(" + suggestions[i].line.x + ", " + other.line.x + "): " + sug1 + ", other: " + sug2);
+						//sjekk x
+						if (sug1 != sug2)
+						{
+							smallest = suggestions[i];
+						}
+					}
+				}
+			}
+		}
+
+		return smallest;
+	}
+
 	int manMaoHaLittAAGaoPao = 2;
 	private double differ;
 

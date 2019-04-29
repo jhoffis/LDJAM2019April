@@ -53,6 +53,7 @@
     <Compile Include="Scripts\Border.cs" />
     <Compile Include="Scripts\BorderHandler.cs" />
     <Compile Include="Scripts\Land.cs" />
+    <Compile Include="Scripts\LineSuggestion.cs" />
     <Compile Include="Scripts\Map.cs" />
     <Compile Include="Scripts\Nation.cs" />
     <Compile Include="Scripts\Player.cs" />

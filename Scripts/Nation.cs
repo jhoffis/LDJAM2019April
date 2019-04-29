@@ -16,6 +16,9 @@ public class Nation : Node2D
 	private Land land;
 	private CollisionPolygon2D collisionArea;
 	private Polygon2D nationArea;
+	public bool island;
+	public int islandWithin;
+
 	public Nation()
 	{
 		GD.Print("PLEASE DONT USE ME");
@@ -28,9 +31,11 @@ public class Nation : Node2D
 		genericPointerLine = new Line2D();
 		SetGenericPointer(genericPointer);
 
+		island = false;
+		islandWithin = -1;
 		this.land = land;
 		land.ReferenceToParent(this);
-		collisionArea = (CollisionPolygon2D) land.FindNode("Collision");
+		collisionArea = (CollisionPolygon2D)land.FindNode("Collision");
 		nationArea = new Polygon2D();
 
 		nationArea.SetName("NationArea");
@@ -60,8 +65,8 @@ public class Nation : Node2D
 		line.SetName("Border" + borders.Count);
 		borders.Add(line);
 
-		line.AddPoint(from);
-		line.AddPoint(to);
+		// line.AddPoint(from);
+		// line.AddPoint(to);
 
 		if (!points.Contains(from))
 		{
@@ -270,7 +275,6 @@ public class Nation : Node2D
 		ShortRoadFirstY(oppositeX2, to, dest);
 		dest.Enqueue(to);
 	}
-
 	private void ShortRoadFirstY(Vector2 from, Vector2 to, Queue<Vector2> dest)
 	{
 		//Korte vei
@@ -327,6 +331,20 @@ public class Nation : Node2D
 			AddChild((Line2D)borders[l]);
 		}
 
+	}
+
+	internal void UpdateIsland(int playernr, Vector2[] vector2)
+	{
+		throw new NotImplementedException();
+	}
+
+	internal void ReleaseIsland(int playernr)
+	{
+		throw new NotImplementedException();
+	}
+	internal void AddIsland(int playernr)
+	{
+		throw new NotImplementedException();
 	}
 
 	public ArrayList GetBorders()
@@ -407,7 +425,8 @@ public class Nation : Node2D
 		genericPointerLine.AddPoint(genericPointer);
 	}
 
-	public void ClearBorderPoints(){
+	public void ClearBorderPoints()
+	{
 		points.Clear();
 		borders.Clear();
 	}
