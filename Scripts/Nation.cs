@@ -42,7 +42,7 @@ public class Nation : Node2D
 
 		AddChild(land);
 		AddChild(nationArea);
-		AddChild(genericPointerLine);
+		// AddChild(genericPointerLine);
 	}
 
 	private void Init(bool preferTop, int playernr)

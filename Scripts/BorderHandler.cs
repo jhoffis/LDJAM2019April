@@ -9,7 +9,7 @@ public class BorderHandler : Node2D
 	private Line2D edge;
 	public static int size = 200;
 	private Color[] teamColors;
-	private Line2D line;
+	private Line2D suggestedConquestLine2D;
 	private ArrayList suggestedPoints;
 
 	public override void _Ready()
@@ -49,8 +49,8 @@ public class BorderHandler : Node2D
 			UpdateGenericPointer(nation);
 			AddChild(nation);
 		}
-		line = new Line2D();
-		AddChild(line);
+		suggestedConquestLine2D = new Line2D();
+		AddChild(suggestedConquestLine2D);
 
 	}
 
@@ -665,14 +665,14 @@ public class BorderHandler : Node2D
 			suggestedPoints.Add(suggestionPoint1.line);
 		}
 
-		while (line.GetPointCount() != 0)
+		while (suggestedConquestLine2D.GetPointCount() != 0)
 		{
-			line.RemovePoint(line.GetPointCount() - 1);
+			suggestedConquestLine2D.RemovePoint(suggestedConquestLine2D.GetPointCount() - 1);
 		}
 		for (int i = 0; i < suggestedPoints.Count; i++)
 		{
-			line.AddPoint(mp);
-			line.AddPoint((Vector2)suggestedPoints[i]);
+			suggestedConquestLine2D.AddPoint(mp);
+			suggestedConquestLine2D.AddPoint((Vector2)suggestedPoints[i]);
 		}
 
 		if (key != null && key.IsPressed() && key.ButtonIndex == 2)

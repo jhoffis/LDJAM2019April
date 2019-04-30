@@ -1,0 +1,6 @@
+C:\Users\Jhoffis\Documents\godot\LDJAM\LDJAM2019April\.mono\temp\bin\Debug\LDJAM.dll
+C:\Users\Jhoffis\Documents\godot\LDJAM\LDJAM2019April\.mono\temp\bin\Debug\LDJAM.pdb
+C:\Users\Jhoffis\Documents\godot\LDJAM\LDJAM2019April\.mono\temp\obj\Debug\LDJAM.csprojAssemblyReference.cache
+C:\Users\Jhoffis\Documents\godot\LDJAM\LDJAM2019April\.mono\temp\obj\Debug\LDJAM.csproj.CoreCompileInputs.cache
+C:\Users\Jhoffis\Documents\godot\LDJAM\LDJAM2019April\.mono\temp\obj\Debug\LDJAM.dll
+C:\Users\Jhoffis\Documents\godot\LDJAM\LDJAM2019April\.mono\temp\obj\Debug\LDJAM.pdb
