@@ -198,7 +198,7 @@ public class BorderHandler : Node2D
 			//FIXME
 			GD.Print("ISLAND!!!");
 			DrawNewFriendlyBorder(myPoints, newFriendlyBorder, newBorderPoints, (int)found.x, (int)found.y, true, newTargetBorder.ToArray() as Vector2[]);
-			SetOwnerOfIsland(targetNation, (int) targetIsIsland.y);
+			SetOwnerOfIsland(targetNation, (int)targetIsIsland.y);
 		}
 
 		//Sjekk også om at NOEN har blitt island... under myNation faktisk.
@@ -285,7 +285,7 @@ public class BorderHandler : Node2D
 	{
 		int res = 1;
 		int owner = -1;
-		int amount = 0;
+		int ownerCount = 0;
 		//Hvis playercount er lavere enn 2 så ser man bare på kantenoder
 		if (amount > 2)
 		{
@@ -299,26 +299,26 @@ public class BorderHandler : Node2D
 				}
 				for (int i = 0; i < nations.Count; i++)
 				{
-					if (i != target)
+					if (i == target || i == owner)
+						break;
+					Nation otherNation = (Nation)nations[i];
+					ArrayList otherPoints = otherNation.GetPoints();
+
+					for (int n = 0; n < otherPoints.Count; n++)
 					{
-						Nation otherNation = (Nation)nations[i];
-						ArrayList otherPoints = otherNation.GetPoints();
-
-						for (int n = 0; n < otherPoints.Count; n++)
+						if (IsSamePoint(v, (Vector2)otherPoints[n]))
 						{
-							if (IsSamePoint(v, (Vector2)otherPoints[n]))
-							{
-								owner = i;
-								amount++;
-
-								if (amount > 1)
-								{
-									res = -1;
-									break;
-								}
-							}
+							owner = i;
+							ownerCount++;
+							break;
 						}
 					}
+				}
+
+				if (ownerCount > 1)
+				{
+					res = -1;
+					break;
 				}
 			}
 		}
@@ -434,6 +434,9 @@ public class BorderHandler : Node2D
 				lastPoint = betweenPoint;
 				betweenPoint = myPoints[r];
 			}
+			//FIXME : sjekk om myPoints[r] == lastPoint.
+
+			//Sjekk om l
 			//Legg til søk av seg selv nedover i listen. Om den finner seg selv fjern alle i mellom og sin kopi.
 
 			// newFriendlyBorder = PopTillCopyFound(newFriendlyBorder, myPoints[r]);
