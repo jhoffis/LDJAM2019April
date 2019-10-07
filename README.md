@@ -21,7 +21,7 @@ The borders have changed a bit...
 - .NET Framework (C#)
 
 ## How to use?
-### https://www.jhoffis.dev/games/ldjamapril2019/
+### https://www.jhoffis.dev/games/ldjam44/
 Download here to Windows
 
 ## License
